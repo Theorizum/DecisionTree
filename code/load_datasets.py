@@ -58,8 +58,59 @@ def load_iris_dataset(train_ratio):
 
 
 def load_iris_dataset_folds(train_ratio, n_folds):
-    """Load the Iris dataset and split it into train and test sets for cross-validation."""
-    pass
+    """
+    Loads the Iris dataset and prepares it for k-fold cross-validation.
+
+    Parameters:
+        train_ratio (float): Fraction of the dataset to be used as training data.
+        n_folds (int): Number of folds for cross-validation.
+
+    Returns:
+        tuple: number of features, number of classes, array of folds, test dataset
+    """
+
+    dataset = load_iris_np()
+    if len(dataset) == 0:
+        raise ValueError("Dataset is empty. Check the file path or file contents.")
+
+    if len(dataset) < n_folds:
+        raise ValueError(
+            "Number of data points is less than the number of folds requested."
+        )
+
+    n_features = len(dataset[0]) - 1
+    n_classes = len(np.unique(dataset["species"]))
+
+    # split dataset according to train_ratio
+    train_size = int(len(dataset) * train_ratio)
+    if train_size == 0:
+        raise ValueError(
+            "Training set size becomes zero with the provided train_ratio."
+        )
+
+    train_dataset = dataset[:train_size]
+    test_dataset = dataset[train_size:]
+
+    # stratified folds for cross-validation
+    folds = []
+    unique_classes = np.unique(train_dataset["species"])
+    for _ in range(n_folds):
+        fold = []
+        for cls in unique_classes:
+            cls_mask = train_dataset["species"] == cls
+            cls_data = train_dataset[cls_mask]
+            split_size = int(len(cls_data) / n_folds)
+            if split_size == 0:
+                raise ValueError("Not enough data per class to form a fold.")
+
+            fold.extend(cls_data[:split_size])
+            train_dataset = np.concatenate(
+                [train_dataset[cls_mask][split_size:], train_dataset[~cls_mask]]
+            )
+        folds.append(np.array(fold))
+
+    folds = np.array(folds, dtype=object)
+    return n_features, n_classes, folds, test_dataset
 
 
 def load_wine_np():
